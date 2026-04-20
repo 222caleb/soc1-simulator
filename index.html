@@ -1,0 +1,3268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOC 1 Simulation Lab</title>
+  <meta name="description"
+    content="Home-lab SIEM project: Splunk-based SSH brute force detection with incident response documentation and MITRE ATT&CK mapping. Detected 8 coordinated attacker IPs across 7 countries.">
+  <meta property="og:title" content="SOC 1 Simulation Lab - SSH Brute Force Detection">
+  <meta property="og:description"
+    content="Detected a coordinated brute force campaign from 8 IPs across 7 countries using Splunk, Kali Linux, and Ubuntu on Apple Silicon.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0F1011">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0F1011;
+      --bg2: #17181A;
+      --bg3: #1E1F22;
+      --border: #26272B;
+      --border2: #33343A;
+      --white: #EBEAE7;
+      --muted: #8E8D8A;
+      --tertiary: #5C5B59;
+      --orange: #E8833B;
+      --orange-dim: #7A4A23;
+      --red: #DD5A5A;
+      --red-dim: #6B2A2A;
+      --teal: #3FA89B;
+      --blue: #5A8DD4;
+      --purple: #8A76C8;
+      --green: #4A9D6A;
+      --yellow: #C9A84A;
+      --font-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --shadow-modal: 0 20px 60px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+      --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, .2);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 15px;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 60%, rgba(232, 131, 59, .07) 0%, transparent 70%);
+    }
+
+    .hero-binary {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .hero-content {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      padding: 0 20px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--orange);
+      margin-bottom: 24px;
+      opacity: 0;
+      animation: fadeUp .6s ease .3s forwards;
+    }
+
+    .hero-stat {
+      font-family: var(--font-display);
+      font-size: clamp(88px, 17vw, 180px);
+      font-weight: 700;
+      line-height: 0.95;
+      color: var(--white);
+      letter-spacing: -3px;
+      opacity: 0;
+      animation: fadeUp .6s ease .5s forwards;
+    }
+
+    .hero-stat span {
+      color: var(--orange);
+    }
+
+    .hero-label {
+      font-family: var(--font-body);
+      font-size: clamp(16px, 2.5vw, 22px);
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 16px;
+      max-width: 760px;
+      margin-left: auto;
+      margin-right: auto;
+      opacity: 0;
+      animation: fadeUp .6s ease .7s forwards;
+    }
+
+    .hero-sub {
+      font-size: 16px;
+      color: var(--muted);
+      margin-top: 16px;
+      max-width: 760px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.8;
+      opacity: 0;
+      animation: fadeUp .6s ease .9s forwards;
+    }
+
+    .hero-cta {
+      margin-top: 52px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      opacity: 0;
+      animation: fadeUp .6s ease 1.1s forwards;
+    }
+
+    .cta-line {
+      width: 40px;
+      height: 1px;
+      background: var(--border2);
+    }
+
+    .cta-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      animation: pulse 2s ease-in-out 1.5s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: .4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ── DASHBOARD ── */
+    .dashboard {
+      display: none;
+      padding: 0 0 80px;
+    }
+
+    .dashboard.show {
+      display: block;
+    }
+
+    /* ── HEADER ── */
+    .dash-header {
+      background: rgba(23, 24, 26, .88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .dash-logo {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--white);
+    }
+
+    .dash-logo span {
+      color: var(--orange);
+    }
+
+    .dash-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── KPI STATS BAR ── */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-cell {
+      padding: 28px 36px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-cell:last-child {
+      border-right: none;
+    }
+
+    .stat-num {
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .stat-label {
+      font-family: var(--font-body);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+
+    /* ── CONTENT WRAP ── */
+    .content-wrap {
+      padding: 48px 48px;
+    }
+
+    .section-block {
+      margin-bottom: 64px;
+    }
+
+    .section-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: var(--orange);
+      margin-bottom: 8px;
+      text-transform: capitalize;
+    }
+
+    .section-heading {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.5px;
+      margin-bottom: 24px;
+      text-transform: capitalize;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .section-title-large {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.5px;
+    }
+
+    /* ── INSIGHT CARDS ── */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .insight-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .insight-card:hover {
+      border-color: var(--border2);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .insight-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      border-radius: 4px 4px 0 0;
+    }
+
+    .ic-red::before {
+      background: var(--red);
+    }
+
+    .ic-orange::before {
+      background: var(--orange);
+    }
+
+    .ic-yellow::before {
+      background: var(--yellow);
+    }
+
+    .ic-teal::before {
+      background: var(--teal);
+    }
+
+    .ic-blue::before {
+      background: var(--blue);
+    }
+
+    .ic-purple::before {
+      background: var(--purple);
+    }
+
+    .insight-pct {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 56px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .ic-red .insight-pct {
+      color: var(--red);
+    }
+
+    .ic-orange .insight-pct {
+      color: var(--orange);
+    }
+
+    .ic-yellow .insight-pct {
+      color: var(--yellow);
+    }
+
+    .ic-teal .insight-pct {
+      color: var(--teal);
+      font-size: 42px;
+    }
+
+    .ic-blue .insight-pct {
+      color: var(--blue);
+    }
+
+    .ic-purple .insight-pct {
+      color: var(--purple);
+    }
+
+    .insight-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+
+    .insight-body {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── CAMPAIGN SIGNATURES ── */
+    .signatures-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .sig-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .sig-card:hover {
+      border-color: var(--border2);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .sig-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .sig-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .sig-detected {
+      background: rgba(221, 90, 90, .12);
+      color: var(--red);
+      border: 1px solid rgba(221, 90, 90, .25);
+    }
+
+    .sig-indicator {
+      background: rgba(142, 141, 138, .1);
+      color: var(--muted);
+      border: 1px solid rgba(142, 141, 138, .2);
+    }
+
+    .sig-metric {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 38px;
+      line-height: 1;
+      color: var(--white);
+    }
+
+    .sig-name {
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .sig-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .sig-bar-wrap {
+      height: 3px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .sig-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.2s cubic-bezier(.4, 0, .2, 1);
+      width: 0;
+    }
+
+    /* ── WORLD MAP ── */
+    .map-section {
+      margin-bottom: 56px;
+    }
+
+    .map-outer {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    .map-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    #worldMap {
+      width: 100%;
+      display: block;
+    }
+
+    .country-path {
+      fill: var(--bg3);
+      stroke: var(--border2);
+      stroke-width: .5;
+    }
+
+    .attacker-dot-inner {
+      fill: var(--orange);
+      cursor: pointer;
+    }
+
+    .attacker-dot-ring {
+      fill: none;
+      stroke: var(--orange);
+      stroke-width: 1.5;
+    }
+
+    .map-tooltip {
+      position: fixed;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      padding: 12px 16px;
+      pointer-events: none;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity .15s;
+      min-width: 180px;
+    }
+
+    .map-tooltip.show {
+      opacity: 1;
+    }
+
+    .tt-ip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--orange);
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+
+    .tt-loc {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 4px;
+    }
+
+    .tt-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .map-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .map-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--orange);
+      flex-shrink: 0;
+    }
+
+    .map-legend-text {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── INCIDENT CARDS ── */
+    .incident-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .incident-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+      position: relative;
+    }
+
+    .incident-card:hover {
+      border-color: var(--border2);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .incident-card-inner {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+    }
+
+    .inc-sidebar {
+      padding: 28px 24px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .inc-id {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--white);
+    }
+
+    .inc-date {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .inc-tags {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .inc-main {
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .inc-type {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 10px;
+    }
+
+    .inc-summary {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 20px;
+      flex: 1;
+    }
+
+    .inc-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .inc-metrics {
+      display: flex;
+      gap: 20px;
+    }
+
+    .inc-metric {
+      text-align: center;
+    }
+
+    .inc-metric-val {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1;
+    }
+
+    .inc-metric-label {
+      font-family: var(--font-body);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .inc-cta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .inc-cta-line {
+      width: 24px;
+      height: 1px;
+      background: var(--border2);
+    }
+
+    .inc-card-accent {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 4px 0 0 4px;
+    }
+
+    /* ── TAG SYSTEM ── */
+    .tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .tag-red {
+      background: rgba(221, 90, 90, .15);
+      color: var(--red);
+      border: 1px solid rgba(221, 90, 90, .3);
+    }
+
+    .tag-yellow {
+      background: rgba(201, 168, 74, .15);
+      color: var(--yellow);
+      border: 1px solid rgba(201, 168, 74, .3);
+    }
+
+    .tag-teal {
+      background: rgba(63, 168, 155, .15);
+      color: var(--teal);
+      border: 1px solid rgba(63, 168, 155, .3);
+    }
+
+    .tag-blue {
+      background: rgba(90, 141, 212, .15);
+      color: var(--blue);
+      border: 1px solid rgba(90, 141, 212, .3);
+    }
+
+    .tag-orange {
+      background: rgba(232, 131, 59, .15);
+      color: var(--orange);
+      border: 1px solid rgba(232, 131, 59, .3);
+    }
+
+    .tag-muted {
+      background: rgba(142, 141, 138, .1);
+      color: var(--muted);
+      border: 1px solid rgba(142, 141, 138, .2);
+    }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .tech-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 28px;
+    }
+
+    .tech-panel-header {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tech-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .tech-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .tech-bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-top: 7px;
+    }
+
+    .tech-name {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .tech-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── ARCHITECTURE ── */
+    .arch-flow {
+      display: flex;
+      align-items: stretch;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .arch-node {
+      flex-shrink: 0;
+      width: 180px;
+      padding: 24px 20px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .arch-node:last-child {
+      border-right: none;
+    }
+
+    .arch-node-type {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      margin-bottom: 4px;
+    }
+
+    .arch-node-name {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .arch-node-meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .arch-node-tools {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .arch-attack {
+      border-left: 3px solid var(--red);
+    }
+
+    .arch-attack .arch-node-type {
+      background: rgba(221, 90, 90, .1);
+      color: var(--red);
+      border: 1px solid rgba(221, 90, 90, .2);
+    }
+
+    .arch-target {
+      border-left: 3px solid var(--orange);
+    }
+
+    .arch-target .arch-node-type {
+      background: rgba(232, 131, 59, .1);
+      color: var(--orange);
+      border: 1px solid rgba(232, 131, 59, .2);
+    }
+
+    .arch-fwd {
+      border-left: 3px solid var(--teal);
+    }
+
+    .arch-fwd .arch-node-type {
+      background: rgba(63, 168, 155, .1);
+      color: var(--teal);
+      border: 1px solid rgba(63, 168, 155, .2);
+    }
+
+    .arch-siem-node {
+      border-left: 3px solid var(--blue);
+    }
+
+    .arch-siem-node .arch-node-type {
+      background: rgba(90, 141, 212, .1);
+      color: var(--blue);
+      border: 1px solid rgba(90, 141, 212, .2);
+    }
+
+    .arch-connector {
+      flex: 1;
+      min-width: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 20px 12px;
+    }
+
+    .arch-conn-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .arch-conn-line {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .arch-conn-line-body {
+      flex: 1;
+      height: 1px;
+      background: var(--border2);
+    }
+
+    .arch-conn-arrow {
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid var(--border2);
+    }
+
+    /* ── QUERY LIBRARY ── */
+    .query-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .query-item {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .query-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      cursor: pointer;
+      background: var(--bg2);
+      transition: background .1s;
+    }
+
+    .query-header:hover {
+      background: var(--bg3);
+    }
+
+    .query-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .query-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--orange);
+      letter-spacing: 1px;
+    }
+
+    .query-title-text {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .query-toggle {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      color: var(--muted);
+      line-height: 1;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .query-body {
+      padding: 0 22px 20px;
+      background: var(--bg);
+      display: none;
+    }
+
+    .query-body.open {
+      display: block;
+    }
+
+    .query-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+      padding-top: 14px;
+      margin-bottom: 6px;
+    }
+
+    /* ── CODE BLOCKS ── */
+    .code-block {
+      position: relative;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+
+    .code-block pre {
+      padding: 16px 18px;
+      padding-right: 64px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--white);
+      line-height: 1.75;
+      white-space: pre;
+      margin: 0;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all .15s;
+      z-index: 1;
+    }
+
+    .copy-btn:hover {
+      color: var(--white);
+      border-color: var(--white);
+    }
+
+    .copy-btn.copied {
+      color: var(--teal);
+      border-color: var(--teal);
+    }
+
+    /* ── EVIDENCE GALLERY ── */
+    .evidence-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .evidence-panel-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .evidence-inc-id {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .evidence-inc-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .evidence-grid:has(.evidence-item:only-child) {
+      grid-template-columns: minmax(0, 900px);
+      justify-content: center;
+    }
+
+    .evidence-item {
+      background: var(--bg2);
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 16/10;
+    }
+
+    .evidence-grid:has(.evidence-item:only-child) .evidence-item {
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .evidence-item:hover {
+      background: var(--bg3);
+    }
+
+    .evidence-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 0;
+      transition: opacity .3s ease;
+      z-index: 1;
+    }
+
+    .evidence-item:hover .evidence-img {
+      opacity: 0.15;
+    }
+
+    .evidence-cover {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--bg2);
+      transition: background .2s;
+    }
+
+    .evidence-item:hover .evidence-cover {
+      background: rgba(23, 24, 26, .85);
+    }
+
+    .evidence-cover-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .evidence-cover-id {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+
+    .evidence-cover-middle {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+    }
+
+    .evidence-cover-title {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--white);
+      line-height: 1.3;
+    }
+
+    .evidence-cover-divider {
+      height: 1px;
+      background: var(--border2);
+      margin: 0 0 14px;
+    }
+
+    .evidence-cover-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .evidence-cover-cta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--orange);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .evidence-cover-cta-arrow {
+      display: inline-block;
+      transition: transform .2s;
+    }
+
+    .evidence-item:hover .evidence-cover-cta-arrow {
+      transform: translateX(4px);
+    }
+
+    .evidence-cover-meta {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    /* ── DASHBOARD SHOT ── */
+    .dashboard-shot-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dashboard-shot-link {
+      display: block;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--bg2);
+      position: relative;
+      min-height: 220px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .dashboard-shot-link:hover {
+      border-color: var(--orange);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .dashboard-shot-preview {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .dashboard-shot-kicker {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: var(--orange);
+    }
+
+    .dashboard-shot-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.3px;
+    }
+
+    .dashboard-shot-sub {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 460px;
+    }
+
+    .dashboard-shot-cta {
+      margin-top: 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      padding: 8px 20px;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      transition: color .15s, border-color .15s;
+    }
+
+    .dashboard-shot-link:hover .dashboard-shot-cta {
+      color: var(--white);
+      border-color: var(--orange);
+    }
+
+    .dashboard-shot-caption {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--tertiary);
+    }
+
+    /* ── SKILLS ── */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .skill-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 18px;
+      transition: border-color .15s;
+    }
+
+    .skill-item:hover {
+      border-color: var(--border2);
+    }
+
+    .skill-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--teal);
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    .skill-text {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── DETAIL OVERLAY ── */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .8);
+      z-index: 100;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow-y: auto;
+    }
+
+    .detail-overlay.show {
+      display: flex;
+    }
+
+    .detail-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      box-shadow: var(--shadow-modal);
+      max-width: 860px;
+      width: 100%;
+      position: relative;
+      margin: auto;
+    }
+
+.detail-header {
+  padding: 26px 32px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  z-index: 1;
+  border-radius: 6px 6px 0 0;
+}
+
+    .detail-close {
+      position: absolute;
+      top: 18px;
+      right: 24px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+    }
+
+    .detail-close:hover {
+      color: var(--white);
+    }
+
+    .detail-inc-id {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .detail-inc-title {
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--white);
+      margin-bottom: 12px;
+    }
+
+    .detail-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .detail-body {
+      padding: 24px 32px 32px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .detail-cell {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+
+    .dc-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .dc-val {
+      font-size: 13px;
+      color: var(--white);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    .detail-section-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: var(--orange);
+      margin: 24px 0 10px;
+    }
+
+    .detail-text {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .detail-text strong,
+    .detail-text b {
+      color: var(--white);
+    }
+
+    .detail-text code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg3);
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--teal);
+    }
+
+    .detail-lesson {
+      background: var(--bg3);
+      border-left: 3px solid var(--teal);
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.75;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .detail-lesson.warning {
+      border-left-color: var(--red);
+    }
+
+    .detail-lesson strong {
+      color: var(--white);
+    }
+
+    .detail-timeline {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+
+    .detail-timeline th {
+      text-align: left;
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border2);
+      background: var(--bg3);
+    }
+
+    .detail-timeline td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .detail-timeline td:first-child {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .detail-timeline tr:last-child td {
+      border-bottom: none;
+    }
+
+    .inv-step {
+      margin: 16px 0;
+    }
+
+    .inv-step-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--orange);
+      margin-bottom: 4px;
+    }
+
+    .inv-step-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 10px;
+    }
+
+    .inv-findings {
+      margin-top: 10px;
+    }
+
+    .ioc-block {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 18px;
+      margin: 10px 0;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 2;
+    }
+
+    .ioc-ip {
+      color: var(--red);
+    }
+
+    .artifacts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .artifact-thumb {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      text-decoration: none;
+      transition: border-color .15s;
+    }
+
+    .artifact-thumb:hover {
+      border-color: var(--border2);
+    }
+
+    .artifact-thumb img {
+      width: 100%;
+      aspect-ratio: 16/10;
+      object-fit: cover;
+      display: block;
+      background: var(--bg3);
+    }
+
+    .artifact-cap {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--muted);
+      padding: 7px 10px;
+      background: var(--bg2);
+    }
+
+    /* ── LIGHTBOX ── */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .92);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .lightbox-overlay.show {
+      display: flex;
+    }
+
+    .lightbox-panel {
+      position: relative;
+      max-width: 1200px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+      border: 1px solid var(--border2);
+    }
+
+    .lightbox-caption {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .lightbox-close {
+      position: fixed;
+      top: 22px;
+      right: 28px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 30px;
+      cursor: pointer;
+      z-index: 301;
+      line-height: 1;
+    }
+
+    .lightbox-close:hover {
+      color: var(--white);
+    }
+
+    .lightbox-prev,
+    .lightbox-next {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      color: var(--white);
+      font-size: 26px;
+      padding: 14px 18px;
+      cursor: pointer;
+      z-index: 301;
+      transition: background .15s;
+    }
+
+    .lightbox-prev {
+      left: 20px;
+    }
+
+    .lightbox-next {
+      right: 20px;
+    }
+
+    .lightbox-prev:hover,
+    .lightbox-next:hover {
+      background: var(--bg3);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 16px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 40px;
+    }
+
+    .footer-l {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .footer-r {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .footer-r a {
+      color: var(--orange);
+      text-decoration: none;
+    }
+
+    /* ── SKIP LINK ── */
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 8px;
+      z-index: 500;
+      background: var(--bg2);
+      color: var(--white);
+      padding: 8px 16px;
+      border: 1px solid var(--white);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      left: 8px;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1100px) {
+      .incident-card-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .inc-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .inc-tags {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .insights-grid,
+      .signatures-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .tech-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dash-header,
+      .content-wrap {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      footer {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .detail-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .evidence-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .artifacts-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+
+      .insights-grid,
+      .signatures-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .skills-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .evidence-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .arch-flow {
+        flex-direction: column;
+      }
+
+      .arch-node {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .arch-connector {
+        flex-direction: row;
+        min-width: unset;
+        padding: 12px 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- ═══════════════════════════════════════════════════════════ HERO -->
+  <div class="hero" id="hero" role="button" tabindex="0" aria-label="Click to enter the SOC dashboard">
+    <div class="hero-bg"></div>
+    <canvas class="hero-binary" id="heroBinary"></canvas>
+    <div class="hero-content">
+      <div class="hero-eyebrow">SSH brute force detection lab &middot; 2026</div>
+      <div class="hero-stat"><span>4,329</span></div>
+      <div class="hero-label">Attack attempts detected and analyzed</div>
+      <p class="hero-sub">A home-lab SIEM deployment that detected a coordinated SSH brute force campaign from 8 source
+        IPs across 7 countries. Built with Splunk, Kali Linux, and Ubuntu, all running on a MacBook M1 via UTM
+        virtualization. Total of 4,329 events analyzed including 4,000 from the external coordinated campaign and 329
+        from internal lab attack testing.</p>
+      <div class="hero-cta">
+        <div class="cta-line"></div>
+        <div class="cta-text">Click to enter the dashboard</div>
+        <div class="cta-line"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ DASHBOARD -->
+  <div class="dashboard" id="dashboard">
+
+    <!-- HEADER -->
+    <header class="dash-header">
+      <div class="dash-logo" onclick="scrollToTop()" style="cursor:pointer" role="button" tabindex="0"
+        onkeydown="if(event.key==='Enter')scrollToTop()" aria-label="Scroll to top">SOC 1 <span>Simulation Lab</span>
+      </div>
+      <div class="dash-meta">Home Lab SIEM &nbsp;&middot;&nbsp; Splunk Enterprise &nbsp;&middot;&nbsp; Caleb Damron</div>
+    </header>
+
+    <!-- KPI STATS -->
+    <div class="stats-bar" role="region" aria-label="Key metrics">
+      <div class="stat-cell">
+        <div class="stat-num" style="color:var(--orange)">4,329</div>
+        <div class="stat-label">Total events analyzed</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num" style="color:var(--blue)">9</div>
+        <div class="stat-label">Unique attacker IPs</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num" style="color:var(--yellow)">15</div>
+        <div class="stat-label">Service accounts targeted</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num" style="color:var(--teal)">2</div>
+        <div class="stat-label">Incidents investigated</div>
+      </div>
+    </div>
+
+
+    <main class="content-wrap" id="main-content">
+
+      <!-- ── KEY FINDINGS ── -->
+      <section class="section-block" aria-label="Key findings">
+        <div class="section-eyebrow">Investigation results</div>
+        <h2 class="section-heading">Key findings</h2>
+        <div class="insights-grid">
+          <div class="insight-card ic-orange">
+            <div class="insight-pct">8/8</div>
+            <div class="insight-title">IPs attacked in perfect synchronization</div>
+            <div class="insight-body">All 8 distinct source IPs began their attack at exactly 17:39:17 and ceased within
+              the same 1-second window which is a clear botnet coordination signature.</div>
+          </div>
+          <div class="insight-card ic-red">
+            <div class="insight-pct">7</div>
+            <div class="insight-title">Countries across 4 continents</div>
+            <div class="insight-body">Attack infrastructure spanned Singapore, United States, Indonesia, Germany,
+              Lithuania, Nigeria, and Russia, consistent with distributed botnet operations.</div>
+          </div>
+          <div class="insight-card ic-yellow">
+            <div class="insight-pct">100%</div>
+            <div class="insight-title">Detection rate, zero successful compromises</div>
+            <div class="insight-body">Despite 4,000 attack attempts across the campaign, no external IP successfully
+              authenticated. All defenses held.</div>
+          </div>
+          <div class="insight-card ic-teal">
+            <div class="insight-pct">T1110.001</div>
+            <div class="insight-title">MITRE ATT&amp;CK technique mapped</div>
+            <div class="insight-body">Attacks mapped to Password Guessing (T1110.001) primary and Credential Stuffing
+              (T1110.004) secondary, based on target username patterns.</div>
+          </div>
+          <div class="insight-card ic-purple">
+            <div class="insight-pct">15</div>
+            <div class="insight-title">Service accounts targeted</div>
+            <div class="insight-body">Credential stuffing focused on common Linux service accounts: root, admin, mysql,
+              postgres, oracle, jenkins, www-data, git, deploy. None exist on the target.</div>
+          </div>
+          <div class="insight-card ic-blue">
+            <div class="insight-pct">2</div>
+            <div class="insight-title">Incident reports authored</div>
+            <div class="insight-body">False positive investigation and full coordinated campaign analysis, each with
+              evidence, queries, MITRE mapping, and hardening recommendations.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── CAMPAIGN SIGNATURES ── -->
+      <section class="section-block" aria-label="Campaign attack signatures">
+        <div class="section-eyebrow">Campaign analysis</div>
+        <h2 class="section-heading">Attack signatures detected</h2>
+        <div class="signatures-grid" id="signaturesGrid"></div>
+      </section>
+
+      <!-- ── GLOBAL ATTACK MAP ── -->
+      <section class="map-section section-block" aria-label="Global attack origins">
+        <div class="section-eyebrow">Geographic intelligence</div>
+        <h2 class="section-heading">Global attack origins</h2>
+        <div class="map-outer">
+          <div class="map-loading" id="mapLoading">Loading map data&hellip;</div>
+          <svg id="worldMap" viewBox="0 0 1009 641" preserveAspectRatio="xMidYMid meet"
+            style="opacity:0;transition:opacity .4s" aria-label="World map showing attacker IP locations">
+            <g id="mapPaths"></g>
+            <g id="attackerDots"></g>
+          </svg>
+          <div class="map-legend">
+            <div class="map-legend-dot"></div>
+            <div class="map-legend-text">Attacker source IP - hover for details</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── INCIDENT REPORTS ── -->
+      <section class="section-block" aria-label="Incident reports">
+        <div class="section-eyebrow">Case documentation</div>
+        <h2 class="section-heading">Incident reports</h2>
+        <div class="section-header" style="margin-bottom:20px">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)" id="incLabel"></div>
+        </div>
+        <div class="incident-cards" id="incidentCards"></div>
+      </section>
+
+      <!-- ── FULL DASHBOARD ── -->
+      <section class="section-block" aria-label="Full Splunk dashboard screenshot">
+        <div class="section-eyebrow">Dashboard overview</div>
+        <h2 class="section-heading">Full Splunk dashboard</h2>
+        <div class="dashboard-shot-panel">
+          <a href="images/dashboard-full.png" class="dashboard-shot-link" onclick="openDashboardShot(event)">
+            <div class="dashboard-shot-preview">
+              <div class="dashboard-shot-kicker">Splunk Enterprise</div>
+              <div class="dashboard-shot-title">Open the full dashboard screenshot</div>
+              <div class="dashboard-shot-sub">View the complete Splunk dashboard in the lightbox instead of displaying the full image inline on the page.</div>
+              <div class="dashboard-shot-cta">Click to view</div>
+            </div>
+          </a>
+          <p class="dashboard-shot-caption">
+            Opens the full Splunk dashboard in the image viewer.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── TECH STACK ── -->
+      <section class="section-block" aria-label="Technology stack">
+        <div class="section-eyebrow">Environment</div>
+        <h2 class="section-heading">Technology stack</h2>
+        <div class="tech-grid">
+          <div class="tech-panel">
+            <div class="tech-panel-header">Attack stack &middot; Kali Linux VM</div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--red)"></div>
+              <div>
+                <div class="tech-name">Kali Linux 2026.1 (ARM64)</div>
+                <div class="tech-desc">Attacker VM - primary offensive platform</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--red)"></div>
+              <div>
+                <div class="tech-name">Hydra 9.6</div>
+                <div class="tech-desc">SSH brute force tool - credential list attacks</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--red)"></div>
+              <div>
+                <div class="tech-name">Metasploit</div>
+                <div class="tech-desc">ssh_login scanner module</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--red)"></div>
+              <div>
+                <div class="tech-name">Nmap</div>
+                <div class="tech-desc">Network reconnaissance and port scanning</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--red)"></div>
+              <div>
+                <div class="tech-name">Custom Bash Script</div>
+                <div class="tech-desc">Multi-IP attack simulation for botnet pattern replication</div>
+              </div>
+            </div>
+          </div>
+          <div class="tech-panel">
+            <div class="tech-panel-header">Defense stack &middot; SOC environment</div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--teal)"></div>
+              <div>
+                <div class="tech-name">Splunk Enterprise 10.2</div>
+                <div class="tech-desc">SIEM / log analysis and visualization platform</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--teal)"></div>
+              <div>
+                <div class="tech-name">Splunk Universal Forwarder 10.2.2</div>
+                <div class="tech-desc">Log shipping agent deployed on the Ubuntu target</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--teal)"></div>
+              <div>
+                <div class="tech-name">Ubuntu 24.04 LTS (ARM64)</div>
+                <div class="tech-desc">Target host - internet-facing SSH service</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--teal)"></div>
+              <div>
+                <div class="tech-name">OpenSSH with LogLevel VERBOSE</div>
+                <div class="tech-desc">Auth event source - key fingerprints, session IDs</div>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-bullet" style="background:var(--teal)"></div>
+              <div>
+                <div class="tech-name">UTM (Apple Silicon)</div>
+                <div class="tech-desc">Virtualization - host-only network isolation</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ARCHITECTURE ── -->
+      <section class="section-block" aria-label="Lab architecture data flow">
+        <div class="section-eyebrow">Infrastructure</div>
+        <h2 class="section-heading">Lab architecture</h2>
+        <div class="arch-flow" role="img"
+          aria-label="Data flow: Kali VM attacks Ubuntu, logs go to Splunk Forwarder, forwarded TCP 9997 to Splunk Enterprise">
+          <div class="arch-node arch-attack">
+            <div class="arch-node-type">Attacker</div>
+            <div class="arch-node-name">Kali Linux VM</div>
+            <div class="arch-node-meta">ARM64 &middot; UTM</div>
+            <div class="arch-node-tools">Hydra &middot; Metasploit &middot; Nmap</div>
+          </div>
+          <div class="arch-connector" aria-hidden="true">
+            <div class="arch-conn-label">SSH attack</div>
+            <div class="arch-conn-line">
+              <div class="arch-conn-line-body"></div>
+              <div class="arch-conn-arrow"></div>
+            </div>
+            <div class="arch-conn-label">port 22</div>
+          </div>
+          <div class="arch-node arch-target">
+            <div class="arch-node-type">Target</div>
+            <div class="arch-node-name">Ubuntu 24.04</div>
+            <div class="arch-node-meta">ARM64 &middot; UTM</div>
+            <div class="arch-node-tools">OpenSSH VERBOSE</div>
+          </div>
+          <div class="arch-connector" aria-hidden="true">
+            <div class="arch-conn-label">Syslog</div>
+            <div class="arch-conn-line">
+              <div class="arch-conn-line-body"></div>
+              <div class="arch-conn-arrow"></div>
+            </div>
+            <div class="arch-conn-label">linux_secure</div>
+          </div>
+          <div class="arch-node arch-fwd">
+            <div class="arch-node-type">Log shipper</div>
+            <div class="arch-node-name">Splunk Forwarder</div>
+            <div class="arch-node-meta">Universal Forwarder</div>
+            <div class="arch-node-tools">v10.2.2</div>
+          </div>
+          <div class="arch-connector" aria-hidden="true">
+            <div class="arch-conn-label">Forwarding</div>
+            <div class="arch-conn-line">
+              <div class="arch-conn-line-body"></div>
+              <div class="arch-conn-arrow"></div>
+            </div>
+            <div class="arch-conn-label">TCP 9997</div>
+          </div>
+          <div class="arch-node arch-siem-node">
+            <div class="arch-node-type">SIEM</div>
+            <div class="arch-node-name">Splunk Enterprise</div>
+            <div class="arch-node-meta">macOS host &middot; v10.2</div>
+            <div class="arch-node-tools">Dashboards &middot; Alerts</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SPL QUERY LIBRARY ── -->
+      <section class="section-block" aria-label="SPL detection query library">
+        <div class="section-eyebrow">Detection logic</div>
+        <h2 class="section-heading">SPL query library</h2>
+        <div class="query-list" id="queryList"></div>
+      </section>
+
+      <!-- ── SKILLS ── -->
+      <section class="section-block" aria-label="Skills demonstrated">
+        <div class="section-eyebrow">Capabilities</div>
+        <h2 class="section-heading">Skills demonstrated</h2>
+        <div class="skills-grid">
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">SIEM deployment from scratch (Splunk Enterprise + Universal Forwarder)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Data source integration (multiple log types via forwarder)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Custom SPL query development and optimization</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Dashboard and visualization design in Splunk</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Threshold-based alerting configuration</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">MITRE ATT&amp;CK framework mapping (T1110.001, T1110.004, T1078)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Risk scoring logic implementation</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Incident response documentation and methodology</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Forensic investigation methodology</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Attack simulation (Hydra, Metasploit, Nmap)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Linux system administration (sshd configuration, log management)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Virtualization on Apple Silicon (UTM / QEMU / ARM64)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">Network segmentation (host-only networking)</div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-dot"></div>
+            <div class="skill-text">False positive investigation and detection tuning</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer>
+      <div class="footer-l">SOC 1 Simulation Lab v1.0 &nbsp;&middot;&nbsp; Home Lab SIEM project</div>
+      <div class="footer-r">
+        Caleb Damron
+        &nbsp;&middot;&nbsp; <a href="https://github.com/222caleb">GitHub</a>
+        &nbsp;&middot;&nbsp; <a href="https://www.linkedin.com/in/caleb-222-damron/">LinkedIn</a>
+      </div>
+    </footer>
+
+  </div><!-- /.dashboard -->
+
+  <!-- ═══════════════════════════════════════ INCIDENT DETAIL MODAL -->
+  <div class="detail-overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-label="Incident report">
+    <div class="detail-panel" id="detailPanel" role="document" tabindex="-1"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════ LIGHTBOX -->
+  <div class="lightbox-overlay" id="lightboxOverlay" role="dialog" aria-modal="true" aria-label="Image viewer">
+    <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">&#x2715;</button>
+    <button class="lightbox-prev" onclick="navLightbox(-1)" aria-label="Previous">&#8249;</button>
+    <button class="lightbox-next" onclick="navLightbox(1)" aria-label="Next">&#8250;</button>
+    <div class="lightbox-panel">
+      <img id="lightboxImg" src="" alt="" class="lightbox-img" />
+      <div id="lightboxCaption" class="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ INCIDENT CONTENT TEMPLATES -->
+  <template id="inc001-template">
+    <div class="detail-header">
+      <button class="detail-close" onclick="closeDetail()" aria-label="Close">&#x2715;</button>
+      <div class="detail-inc-id">Incident report &middot; 2026-04-16 &middot; Closed &middot; False positive</div>
+      <div class="detail-inc-title">INC-2026-001</div>
+      <div class="detail-tags">
+        <span class="tag tag-yellow">P3 Low</span>
+        <span class="tag tag-muted">Closed &middot; False positive</span>
+        <span class="tag tag-blue">T1078 &middot; Valid accounts</span>
+        <span class="tag tag-muted">Suspicious authentication</span>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-grid">
+        <div class="detail-cell">
+          <div class="dc-label">Severity</div>
+          <div class="dc-val" style="color:var(--yellow)">P3 Low</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Status</div>
+          <div class="dc-val">Closed - False positive</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Type</div>
+          <div class="dc-val">Suspicious auth event</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">MITRE ATT&amp;CK</div>
+          <div class="dc-val" style="color:var(--blue)">T1078 - Valid accounts (ruled out)</div>
+        </div>
+      </div>
+
+      <div class="detail-section-title">Executive summary</div>
+      <div class="detail-text">SIEM alerting flagged one successful SSH authentication event as a potential credential
+        compromise. Investigation determined this was legitimate administrative access from an authorized host and not a
+        security incident. Closed as false positive with recommendations for detection tuning.</div>
+
+      <div class="detail-section-title">Timeline</div>
+      <table class="detail-timeline">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th>Event</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2026-04-16 21:38:22.145</td>
+            <td>SSH connection initiated from 10.37.129.1</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 21:38:22.241</td>
+            <td>Failed publickey authentication (RSA key)</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 21:38:22.244</td>
+            <td>Failed publickey authentication (ED25519 key)</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 21:38:24.379</td>
+            <td>Successful password authentication for user 'ubuntu'</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 21:38:24.777</td>
+            <td>Interactive shell session initiated (pts/0)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="detail-section-title">Detection</div>
+      <div class="detail-text"><strong>Alert Source:</strong> Custom Splunk panel "Successful Compromises"</div>
+      <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre>index=main sourcetype=linux_secure "Accepted password"
+| stats count</pre>
+      </div>
+
+      <div class="detail-section-title">Investigation</div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 01</div>
+        <div class="inv-step-title">Identify the successful login</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure "Accepted password"
+| rex "for (?P&lt;username&gt;\S+) from"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+) port (?P&lt;src_port&gt;\d+)"
+| table _time, username, src_ip, src_port, _raw</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings:</strong> Single event. User: <code>ubuntu</code>
+          &nbsp;&middot;&nbsp; Source IP: <code>10.37.129.1</code> &nbsp;&middot;&nbsp; Port: <code>54224</code>
+          &nbsp;&middot;&nbsp; Method: password.</div>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 02</div>
+        <div class="inv-step-title">Reconstruct full session activity</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| search src_ip="10.37.129.1"
+| table _time, _raw
+| sort _time</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings:</strong> Five-event sequence over 2.6 seconds:
+          connection &rarr; RSA key fail &rarr; ED25519 key fail &rarr; password success &rarr; shell. Pattern is
+          characteristic of a client with SSH keys configured but not yet deployed which is inconsistent with brute force.
+        </div>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 03</div>
+        <div class="inv-step-title">Correlate with brute force data</div>
+        <div class="detail-text">Cross-referenced Brute Force Threshold Breaches and Threat Risk Scoring panels. Source
+          IP <code>10.37.129.1</code> was <strong>not present</strong> in any threshold-exceeding dataset. Only 5 total
+          events from this IP.</div>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 04</div>
+        <div class="inv-step-title">Validate source IP identity</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>who</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Output:</strong>
+          <code>ubuntu&nbsp;&nbsp;&nbsp;pts/0&nbsp;&nbsp;&nbsp;2026-04-19 00:39 (10.37.129.1)</code><br>The IP is the
+          analyst's macOS host. The UTM virtualization gateway for lab administration.
+        </div>
+      </div>
+
+      <div class="detail-section-title">Root cause</div>
+      <div class="detail-text">Legitimate administrative SSH session from analyst's host machine. The "Successful
+        Compromises" detection logic flags any <code>Accepted password</code> event without context, creating a false
+        positive for routine admin access.</div>
+
+      <div class="detail-section-title">Indicators of compromise</div>
+      <div class="detail-text"><strong>None identified.</strong> All activity attributable to authorized administrative
+        use.</div>
+
+      <div class="detail-section-title">Impact assessment</div>
+      <div class="detail-text"><strong>No impact.</strong> No unauthorized access, data modification, or exfiltration
+        occurred.</div>
+
+      <div class="detail-section-title">Lessons learned</div>
+      <div class="detail-lesson"><strong>Detection Logic Gap:</strong> The "Successful Compromises" panel lacks context.
+        The "Confirmed Credential Compromise" panel correctly returned zero results, confirming the primary panel was
+        overly sensitive.</div>
+      <div class="detail-text" style="margin-top:14px"><strong>Recommendation - Tune Detection:</strong> Require both
+        conditions: (1) &gt;5 fails from an IP AND (2) subsequent successful auth from the same IP.</div>
+      <div class="detail-text" style="margin-top:10px"><strong>Recommendation - Admin IP Allowlist:</strong></div>
+      <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre>| lookup admin_ips src_ip OUTPUT is_admin
+| where is_admin != "true"</pre>
+      </div>
+
+      <div class="detail-section-title">Evidence artifacts</div>
+      <div class="artifacts-grid">
+        <a href="images/001/successful_login.png" class="artifact-thumb"
+          onclick="openLightboxFromArtifact(this,event)"><img src="images/001/successful_login.png"
+            alt="Splunk panel showing the single successful SSH login event" loading="lazy" />
+          <div class="artifact-cap">Successful Login Event</div>
+        </a>
+        <a href="images/001/full_activity.png" class="artifact-thumb"
+          onclick="openLightboxFromArtifact(this,event)"><img src="images/001/full_activity.png"
+            alt="Full 5-event session sequence from connection to shell start" loading="lazy" />
+          <div class="artifact-cap">Full Session Reconstruction</div>
+        </a>
+        <a href="images/001/brute_force_investigation.png" class="artifact-thumb"
+          onclick="openLightboxFromArtifact(this,event)"><img src="images/001/brute_force_investigation.png"
+            alt="Brute force stats showing no activity from admin IP" loading="lazy" />
+          <div class="artifact-cap">Brute Force Investigation</div>
+        </a>
+        <a href="images/001/who_command.png" class="artifact-thumb" onclick="openLightboxFromArtifact(this,event)"><img
+            src="images/001/who_command.png" alt="Terminal output of who command confirming admin session"
+            loading="lazy" />
+          <div class="artifact-cap">Who Command Output</div>
+        </a>
+      </div>
+    </div>
+  </template>
+
+  <template id="inc002-template">
+    <div class="detail-header">
+      <button class="detail-close" onclick="closeDetail()" aria-label="Close">&#x2715;</button>
+      <div class="detail-inc-id">Incident report &middot; 2026-04-16 &middot; Closed &middot; Contained</div>
+      <div class="detail-inc-title">INC-2026-002</div>
+      <div class="detail-tags">
+        <span class="tag tag-red">P1 Critical</span>
+        <span class="tag tag-teal">Closed &middot; Contained</span>
+        <span class="tag tag-orange">T1110.001 &middot; Brute force</span>
+        <span class="tag tag-muted">Coordinated campaign</span>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-grid">
+        <div class="detail-cell">
+          <div class="dc-label">Severity</div>
+          <div class="dc-val" style="color:var(--red)">P1 Critical</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Status</div>
+          <div class="dc-val" style="color:var(--teal)">Closed - Contained</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Primary technique</div>
+          <div class="dc-val" style="color:var(--orange)">T1110.001 Password guessing</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Secondary</div>
+          <div class="dc-val" style="color:var(--orange)">T1110.004 Credential stuffing</div>
+        </div>
+      </div>
+      <div class="detail-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="detail-cell">
+          <div class="dc-label">Campaign duration</div>
+          <div class="dc-val">~9 minutes 43 seconds</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Total attempts</div>
+          <div class="dc-val" style="color:var(--red)">4,000 failed authentications</div>
+        </div>
+        <div class="detail-cell">
+          <div class="dc-label">Successful compromises</div>
+          <div class="dc-val" style="color:var(--teal)">0 - all defenses held</div>
+        </div>
+      </div>
+
+      <div class="detail-section-title">Executive summary</div>
+      <div class="detail-text">A coordinated distributed brute force campaign targeting the SSH service was detected and
+        analyzed. Eight distinct source IPs across seven countries launched synchronized password-guessing attacks
+        against common Linux service accounts. The campaign generated 4,000 failed authentication events over
+        approximately 10 minutes. All authentication attempts failed. Attack patterns strongly indicate botnet-driven
+        credential stuffing rather than manual activity.</div>
+
+      <div class="detail-section-title">Timeline</div>
+      <table class="detail-timeline">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th>Event</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2026-04-16 17:39:17</td>
+            <td>Attack campaign begins - 8 source IPs simultaneously initiate SSH brute force</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 17:39:00–17:39:59</td>
+            <td>Peak attack rate: 82–110 attempts per IP per minute</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 17:40–17:48</td>
+            <td>Sustained attack across all 8 sources targeting 15 common usernames</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 17:48:59–17:49:00</td>
+            <td>Campaign terminates - all 8 IPs cease simultaneously</td>
+          </tr>
+          <tr>
+            <td>2026-04-16 17:49:00</td>
+            <td>Last event recorded; campaign total: 4,000 failed attempts</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="detail-section-title">Detection</div>
+      <div class="detail-text"><strong>Alert Source:</strong> "Threat Risk Scoring" and "Brute Force Threshold Breaches"
+        panels. Multiple IPs exceeded &gt;10 fails/minute.</div>
+      <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre>index=main sourcetype=linux_secure "Failed password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| bucket _time span=60s
+| stats count as fail_count by _time, src_ip
+| where fail_count > 10
+| sort -fail_count</pre>
+      </div>
+
+      <div class="detail-section-title">Investigation</div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 01</div>
+        <div class="inv-step-title">Establish campaign scope</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure "Failed password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| search src_ip!="10.*"
+| stats count as attempts, min(_time) as first_seen, max(_time) as last_seen by src_ip
+| eval first_seen=strftime(first_seen,"%Y-%m-%d %H:%M:%S")
+| eval last_seen=strftime(last_seen,"%Y-%m-%d %H:%M:%S")
+| sort -attempts</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings:</strong> 8 distinct source IPs. All began at precisely
+          <strong>17:39:17</strong> and ceased within the same one-second window at 17:48:59–17:49:00 - strongly
+          indicative of centralized C2 coordination.
+        </div>
+        <table class="detail-timeline" style="margin-top:10px">
+          <thead>
+            <tr>
+              <th>Source IP</th>
+              <th>Attempts</th>
+              <th>First seen</th>
+              <th>Last seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>114.119.130.178</td>
+              <td>544</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:48:59</td>
+            </tr>
+            <tr>
+              <td>23.129.64.130</td>
+              <td>512</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:48:59</td>
+            </tr>
+            <tr>
+              <td>103.144.208.89</td>
+              <td>508</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:49:00</td>
+            </tr>
+            <tr>
+              <td>185.220.101.45</td>
+              <td>503</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:49:00</td>
+            </tr>
+            <tr>
+              <td>199.249.230.87</td>
+              <td>497</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:48:59</td>
+            </tr>
+            <tr>
+              <td>45.227.254.53</td>
+              <td>492</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:49:00</td>
+            </tr>
+            <tr>
+              <td>196.251.84.122</td>
+              <td>480</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:48:59</td>
+            </tr>
+            <tr>
+              <td>91.240.118.172</td>
+              <td>464</td>
+              <td>2026-04-16 17:39:17</td>
+              <td>2026-04-16 17:48:59</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 02</div>
+        <div class="inv-step-title">Geolocate attacking infrastructure</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure "Failed password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| search src_ip!="10.*"
+| iplocation src_ip
+| stats count as attempts by src_ip, Country, City
+| sort -attempts</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings:</strong> 7 countries on 4 continents. Singapore, United
+          States (×2), Indonesia, Germany, Lithuania, Nigeria, Russia. Geographic diversity consistent with botnet
+          infrastructure.</div>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 03</div>
+        <div class="inv-step-title">Analyze timing patterns for coordination indicators</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure "Failed password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| search src_ip!="10.*"
+| bucket _time span=1m
+| stats count as attempts by _time, src_ip
+| sort _time</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings:</strong> At 17:39:00, all 8 IPs simultaneously active
+          with volumes 82–110 attempts/IP. Peak: 199.249.230.87 (110), 23.129.64.130 (105), 45.227.254.53 (97),
+          185.220.101.45 (96), 114.119.130.178 (95).</div>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 04</div>
+        <div class="inv-step-title">Identify targeted accounts</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure "Failed password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| rex "for invalid user (?P&lt;username1&gt;\S+) from"
+| rex "for (?P&lt;username2&gt;\S+) from"
+| eval username=coalesce(username1,username2)
+| search src_ip!="10.*"
+| stats count as attempts by username
+| sort -attempts
+| head 15</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings:</strong> 15 usernames with tightly clustered counts
+          (236–307). All common Linux service accounts: <code>admin</code>, <code>guest</code>, <code>www-data</code>,
+          <code>deploy</code>, <code>postgres</code>, <code>oracle</code>, <code>root</code>, <code>git</code>,
+          <code>jenkins</code>, <code>mysql</code>, <code>test</code>, <code>backup</code>, <code>labuser</code>,
+          <code>ubuntu</code>, <code>ftp</code>. <strong>None exist on the target.</strong>
+        </div>
+      </div>
+      <div class="inv-step">
+        <div class="inv-step-num">Step 05</div>
+        <div class="inv-step-title">Verify no successful compromises from external sources</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>index=main sourcetype=linux_secure "Accepted password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| search src_ip!="10.*"
+| table _time, src_ip, _raw</pre>
+        </div>
+        <div class="detail-text inv-findings"><strong>Findings: Zero successful authentication events from any external
+            IP.</strong> Despite 4,000 attempts, no credentials were guessed. All 8 attackers were completely
+          unsuccessful.</div>
+      </div>
+
+      <div class="detail-section-title">Root cause</div>
+      <div class="detail-text">A distributed botnet-pattern brute force campaign targeted the SSH service. Credential
+        stuffing against common service account names using globally distributed infrastructure. Attribution to a
+        specific threat actor not possible from available evidence; tactics align with opportunistic internet-facing SSH
+        attacks.</div>
+
+      <div class="detail-section-title">Indicators of compromise</div>
+      <div class="detail-text" style="margin-bottom:8px"><strong>Malicious source IPs:</strong></div>
+      <div class="ioc-block">
+        <div><span class="ioc-ip">114.119.130.178</span> &mdash; Singapore</div>
+        <div><span class="ioc-ip">23.129.64.130</span> &mdash; United States (Seattle)</div>
+        <div><span class="ioc-ip">103.144.208.89</span> &mdash; Indonesia (Gandul)</div>
+        <div><span class="ioc-ip">185.220.101.45</span> &mdash; Germany (Hamburg)</div>
+        <div><span class="ioc-ip">199.249.230.87</span> &mdash; United States (San Angelo)</div>
+        <div><span class="ioc-ip">45.227.254.53</span> &mdash; Lithuania (Vilnius)</div>
+        <div><span class="ioc-ip">196.251.84.122</span> &mdash; Nigeria (Lagos)</div>
+        <div><span class="ioc-ip">91.240.118.172</span> &mdash; Russia (Moscow)</div>
+      </div>
+      <div class="detail-text"><strong>Behavioral IOCs:</strong> Synchronized start/stop across 8 IPs &middot; ~50
+        attempts/IP/min sustained &middot; Systematic targeting of 15 common Linux service accounts &middot; Credential
+        stuffing against non-existent users</div>
+
+      <div class="detail-section-title">Impact assessment</div>
+      <div class="detail-text"><strong>No impact.</strong> All attempts failed. No unauthorized access, data
+        modification, or exfiltration. The attack demonstrates the system's exposure to opportunistic SSH credential
+        attacks.</div>
+
+      <div class="detail-section-title">Containment &amp; remediation</div>
+      <div class="detail-lesson"><strong>Actions taken:</strong> Attack fully logged and detected by SIEM. All 8 IPs
+        identified and documented. No active remediation required as no compromise occurred. Defense-in-depth controls
+        functioned as designed.</div>
+      <div class="detail-text" style="margin-top:14px"><strong>Recommended hardening:</strong> Block attacker IPs at
+        firewall &middot; Implement fail2ban &middot; Disable password auth (require SSH keys) &middot; Disable root SSH
+        login &middot; Move SSH to non-standard port &middot; Rate-limit new SSH connections &middot; Enable 2FA where
+        feasible</div>
+
+      <div class="detail-section-title">Lessons learned</div>
+      <div class="detail-lesson"><strong>Detection strengths:</strong> Multi-source attack correctly identified. Risk
+        scoring panel classified all 8 IPs as CRITICAL (score 70). Scale of attack was immediately obvious. No alert
+        fatigue.</div>
+      <div class="detail-lesson warning" style="margin-top:8px"><strong>Detection gaps:</strong> No detection for
+        low-and-slow variants. No "username enumeration across many sources" pattern detection. No automated blocking -
+        detection only.</div>
+      <div class="detail-text" style="margin-top:14px"><strong>Proposed enhancement - coordinated campaign
+          detection:</strong></div>
+      <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre>index=main sourcetype=linux_secure "Failed password"
+| rex "from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"
+| rex "for invalid user (?P&lt;username&gt;\S+) from"
+| bucket _time span=5m
+| stats dc(src_ip) as unique_attackers by _time, username
+| where unique_attackers > 3
+| sort -unique_attackers</pre>
+      </div>
+
+      <div class="detail-section-title">Evidence artifacts</div>
+      <div class="artifacts-grid">
+        <a href="images/002/scope.png" class="artifact-thumb" onclick="openLightboxFromArtifact(this,event)"><img
+            src="images/002/scope.png" alt="Campaign scope: 8 attacker IPs with attempt counts and timestamps"
+            loading="lazy" />
+          <div class="artifact-cap">Campaign Scope</div>
+        </a>
+        <a href="images/002/location.png" class="artifact-thumb" onclick="openLightboxFromArtifact(this,event)"><img
+            src="images/002/location.png" alt="Geolocation results: attackers across 7 countries, 4 continents"
+            loading="lazy" />
+          <div class="artifact-cap">Geographic Distribution</div>
+        </a>
+        <a href="images/002/usernames.png" class="artifact-thumb" onclick="openLightboxFromArtifact(this,event)"><img
+            src="images/002/usernames.png" alt="Username targeting: 15 service accounts systematically targeted"
+            loading="lazy" />
+          <div class="artifact-cap">Username Targeting</div>
+        </a>
+        <a href="images/002/timing.png" class="artifact-thumb" onclick="openLightboxFromArtifact(this,event)"><img
+            src="images/002/timing.png" alt="Timing analysis: synchronized attack start/stop across all 8 IPs"
+            loading="lazy" />
+          <div class="artifact-cap">Coordinated Timing</div>
+        </a>
+      </div>
+    </div>
+  </template>
+
+  <div class="map-tooltip" id="mapTooltip" aria-hidden="true"></div>
+
+  <script>
+    // ── DATA ──────────────────────────────────────────────────────────────────────
+
+    const SIGNATURES = [
+      { color: '#E8833B', label: 'Credential Stuffing', metric: '4,000', unit: 'attempts', desc: 'All attack traffic used pre-compiled credential lists against common Linux service account names.', pct: 100, detected: true },
+      { color: '#C9A84A', label: 'Service Account Target', metric: '3,761', unit: 'attempts', desc: 'Systematic targeting of accounts that do not exist on this host: admin, mysql, postgres, jenkins, git.', pct: 94, detected: true },
+      { color: '#DD5A5A', label: 'Distributed Sources', metric: '8', unit: 'unique IPs', desc: 'Attack traffic originated from 8 distinct IPs across 7 countries which is consistent with botnet infrastructure.', pct: 100, detected: true },
+      { color: '#3FA89B', label: 'Synchronized Timing', metric: '±1s', unit: 'precision', desc: 'All 8 IPs started and stopped within a 1-second window. A C2 coordination indicator.', pct: 100, detected: true },
+      { color: '#8A76C8', label: 'Failed Publickey Probe', metric: '5', unit: 'attempts', desc: 'SSH negotiation pattern: publickey attempted first before password fallback. Standard SSH client behavior captured.', pct: 1, detected: false },
+      { color: '#5A8DD4', label: 'Password Auth Fallback', metric: '1', unit: 'event', desc: 'One password-auth event detected - the legitimate admin session. Distinguished from attack traffic by context.', pct: 0.1, detected: false },
+    ];
+
+    const ATTACKERS = [
+      { ip: '114.119.130.178', country: 'Singapore', city: 'Singapore', attempts: 544, lat: 1.35, lon: 103.82 },
+      { ip: '23.129.64.130', country: 'United States', city: 'Seattle', attempts: 512, lat: 47.61, lon: -122.33 },
+      { ip: '103.144.208.89', country: 'Indonesia', city: 'Gandul', attempts: 508, lat: -6.27, lon: 106.72 },
+      { ip: '185.220.101.45', country: 'Germany', city: 'Hamburg', attempts: 503, lat: 53.58, lon: 10.02 },
+      { ip: '199.249.230.87', country: 'United States', city: 'San Angelo', attempts: 497, lat: 31.46, lon: -100.44 },
+      { ip: '45.227.254.53', country: 'Lithuania', city: 'Vilnius', attempts: 492, lat: 54.69, lon: 25.28 },
+      { ip: '196.251.84.122', country: 'Nigeria', city: 'Lagos', attempts: 480, lat: 6.52, lon: 3.38 },
+      { ip: '91.240.118.172', country: 'Russia', city: 'Moscow', attempts: 464, lat: 55.76, lon: 37.62 },
+    ];
+
+    const INCIDENTS = [
+      {
+        id: 'INC-2026-001',
+        date: '2026-04-16',
+        severity: 'P3', severityLabel: 'P3 Low', severityClass: 'tag-yellow',
+        type: 'Suspicious Authentication Event',
+        status: 'Closed - False Positive', statusClass: 'tag-muted',
+        statusTags: ['closed', 'false-positive'],
+        mitre: 'T1078', mitreClass: 'tag-blue',
+        summary: 'SIEM flagged a successful SSH login as potential compromise. Investigation confirmed the connection was a legitimate administrative session from the host machine. Routine admin access from the UTM virtualization gateway IP.',
+        metrics: [
+          { val: '1', label: 'Login flagged' },
+          { val: '0', label: 'Attacks' },
+          { val: '0', label: 'Impact' }
+        ],
+        accentColor: 'var(--yellow)',
+        templateId: 'inc001-template'
+      },
+      {
+        id: 'INC-2026-002',
+        date: '2026-04-16',
+        severity: 'P1', severityLabel: 'P1 Critical', severityClass: 'tag-red',
+        type: 'Coordinated Brute Force Campaign',
+        status: 'Closed - Contained', statusClass: 'tag-teal',
+        statusTags: ['closed'],
+        mitre: 'T1110.001', mitreClass: 'tag-orange',
+        summary: '8 source IPs across 7 countries launched a synchronized SSH brute force campaign. All 8 IPs began simultaneously at 17:39:17 and ceased within the same 1-second window. A clear botnet coordination signature. 4,000 attempts, zero successful compromises.',
+        metrics: [
+          { val: '4,000', label: 'Failed attempts' },
+          { val: '8', label: 'Source IPs' },
+          { val: '0', label: 'Compromises' }
+        ],
+        accentColor: 'var(--orange)',
+        templateId: 'inc002-template'
+      }
+    ];
+
+    const QUERIES = [
+      { num: '01', title: 'Brute Force Threshold Detection', desc: 'Identifies source IPs generating more than 10 failed SSH authentication attempts per minute, the primary threshold-based brute force indicator.', code: `index=main sourcetype=linux_secure "Failed password"\n| rex "from (?P<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"\n| bucket _time span=60s\n| stats count as fail_count by _time, src_ip\n| where fail_count > 10\n| sort -fail_count` },
+      { num: '02', title: 'Threat Risk Scoring', desc: 'Composite risk scoring model combining attack volume and username diversity scores to classify threats as CRITICAL, HIGH, MEDIUM, or LOW.', code: `index=main sourcetype=linux_secure "Failed password"\n| rex "from (?P<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"\n| rex "for invalid user (?P<username1>\\S+) from"\n| rex "for (?P<username2>\\S+) from"\n| eval username=coalesce(username1,username2)\n| stats count as attempts, dc(username) as users_targeted by src_ip\n| eval volume_score=case(attempts>500, 40, attempts>200, 25, attempts>50, 15, true(), 5)\n| eval diversity_score=case(users_targeted>10, 30, users_targeted>5, 20, users_targeted>2, 10, true(), 5)\n| eval risk_score=volume_score + diversity_score\n| eval threat_level=case(risk_score>=60, "CRITICAL", risk_score>=40, "HIGH", risk_score>=25, "MEDIUM", true(), "LOW")\n| sort -risk_score\n| table src_ip, attempts, users_targeted, risk_score, threat_level` },
+      { num: '03', title: 'Credential Abuse Correlation', desc: 'Correlates failed and successful authentication events per IP/username pair. Flags IPs with both prior failures AND a subsequent success - confirmed credential abuse.', code: `index=main sourcetype=linux_secure ("Failed password" OR "Accepted password")\n| rex "from (?P<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"\n| rex "for (?P<username>\\S+) from"\n| eval outcome=if(match(_raw,"Accepted"),"success","failure")\n| stats count(eval(outcome="failure")) as fails, count(eval(outcome="success")) as successes by src_ip, username\n| where fails > 5 AND successes > 0\n| eval risk="HIGH - credential abuse confirmed"\n| table src_ip, username, fails, successes, risk` },
+      { num: '04', title: 'Geographic Attack Distribution', desc: 'Enriches attacker IPs with country and city data using Splunk\'s built-in iplocation, then aggregates attempt counts by geography.', code: `index=main sourcetype=linux_secure "Failed password"\n| rex "from (?P<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"\n| search src_ip!="10.*"\n| iplocation src_ip\n| stats count as attempts by src_ip, Country, City\n| sort -attempts` },
+      { num: '05', title: 'Coordinated Campaign Detection', desc: 'Proposed enhancement: detects when 4+ distinct IPs target the same username in a 5-minute window - a strong indicator of coordinated credential stuffing.', code: `index=main sourcetype=linux_secure "Failed password"\n| rex "from (?P<src_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"\n| rex "for invalid user (?P<username>\\S+) from"\n| bucket _time span=5m\n| stats dc(src_ip) as unique_attackers by _time, username\n| where unique_attackers > 3\n| sort -unique_attackers` },
+      { num: '06', title: 'Username Targeting Analysis', desc: 'Ranks the most frequently targeted usernames to identify credential stuffing patterns and service account exposure.', code: `index=main sourcetype=linux_secure "Failed password"\n| rex "for invalid user (?P<username1>\\S+) from"\n| rex "for (?P<username2>\\S+) from"\n| eval username=coalesce(username1,username2)\n| top limit=15 username` },
+    ];
+
+    // ── STATE ─────────────────────────────────────────────────────────────────────
+ let lightboxImages = [];
+let lightboxIdx = 0;
+let lockedScrollY = 0;
+
+    // ── ENTER DASHBOARD ───────────────────────────────────────────────────────────
+    function enterDashboard() {
+      const hero = document.getElementById('hero');
+      const dashboard = document.getElementById('dashboard');
+      hero.style.opacity = '0';
+      setTimeout(() => {
+        hero.style.display = 'none';
+        dashboard.classList.add('show');
+        dashboard.style.opacity = '0';
+        dashboard.style.transition = 'opacity 0.4s ease';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => { dashboard.style.opacity = '1'; });
+        });
+        window.scrollTo(0, 0);
+        renderSignatures();
+        renderWorldMap();
+        renderIncidentCards();
+        renderQueryLibrary();
+      }, 500);
+    }
+
+    // ── SCROLL TO TOP ─────────────────────────────────────────────────────────────
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function lockBodyScroll() {
+  lockedScrollY = window.scrollY || window.pageYOffset;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${lockedScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+}
+
+function unlockBodyScroll() {
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo(0, lockedScrollY);
+}
+
+    // ── CAMPAIGN SIGNATURES ───────────────────────────────────────────────────────
+    function renderSignatures() {
+      const grid = document.getElementById('signaturesGrid');
+      grid.innerHTML = SIGNATURES.map(s => `
+    <div class="sig-card">
+      <div class="sig-header">
+        <div class="sig-metric">${s.metric}</div>
+        <span class="sig-tag ${s.detected ? 'sig-detected' : 'sig-indicator'}">${s.detected ? 'Detected' : 'Observed'}</span>
+      </div>
+      <div class="sig-name">${s.label}</div>
+      <div class="sig-desc">${s.desc}</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <div class="sig-bar-wrap" style="flex:1"><div class="sig-bar" data-pct="${s.pct}" style="background:${s.color}"></div></div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:nowrap">${s.unit}</div>
+      </div>
+    </div>`).join('');
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        grid.querySelectorAll('.sig-bar').forEach(el => {
+          const pct = parseFloat(el.dataset.pct);
+          el.style.width = Math.max(pct, 0.5) + '%';
+        });
+      }));
+    }
+
+    // ── WORLD MAP ─────────────────────────────────────────────────────────────────
+    const MAP_W = 1009, MAP_H = 641;
+    let mapProjection = null;
+
+    function renderWorldMap() {
+      async function buildMap() {
+        const mapSvg = document.getElementById('worldMap');
+        const pathGroup = document.getElementById('mapPaths');
+        const loadingEl = document.getElementById('mapLoading');
+
+        try {
+          const [d3Geo, topojson] = await Promise.all([
+            import('https://cdn.jsdelivr.net/npm/d3-geo@3/+esm'),
+            import('https://cdn.jsdelivr.net/npm/topojson-client@3/+esm')
+          ]);
+
+          const topoResp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+          if (!topoResp.ok) throw new Error('Map data fetch failed');
+          const topology = await topoResp.json();
+          const geoData = topojson.feature(topology, topology.objects.countries);
+
+          mapProjection = d3Geo.geoNaturalEarth1()
+            .fitExtent([[20, 20], [MAP_W - 20, MAP_H - 20]], geoData);
+
+          const pathGenerator = d3Geo.geoPath(mapProjection);
+
+          pathGroup.innerHTML = geoData.features.map(f => {
+            const d = pathGenerator(f);
+            if (!d) return '';
+            const name = (f.properties && f.properties.name) ? f.properties.name : '';
+            return `<path d="${d}" class="country-path" data-name="${name}"/>`;
+          }).join('');
+
+          loadingEl.style.display = 'none';
+          mapSvg.style.opacity = '1';
+          renderAttackerDots(mapSvg);
+        } catch (err) {
+          console.error('Map failed to load:', err);
+          loadingEl.textContent = 'Map unavailable';
+          mapSvg.style.opacity = '1';
+        }
+      }
+
+      buildMap();
+    }
+
+    function renderAttackerDots(mapSvg) {
+      const g = document.getElementById('attackerDots');
+      const tooltip = document.getElementById('mapTooltip');
+      const maxAttempts = Math.max(...ATTACKERS.map(a => a.attempts));
+
+      ATTACKERS.forEach((a, i) => {
+        if (!mapProjection) return;
+        const projected = mapProjection([a.lon, a.lat]);
+        if (!projected) return;
+        const [cx, cy] = projected;
+        const animDelay = i * 0.35;
+
+        const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ring.setAttribute('cx', cx); ring.setAttribute('cy', cy); ring.setAttribute('r', 6);
+        ring.setAttribute('class', 'attacker-dot-ring');
+        ring.innerHTML = `<animate attributeName="r" from="6" to="26" dur="2.4s" begin="${animDelay}s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.8" to="0" dur="2.4s" begin="${animDelay}s" repeatCount="indefinite"/>`;
+        g.appendChild(ring);
+
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('r', 5);
+        dot.setAttribute('class', 'attacker-dot-inner');
+        dot.setAttribute('tabindex', '0');
+        dot.setAttribute('role', 'img');
+        dot.setAttribute('aria-label', `${a.ip} — ${a.city}, ${a.country}: ${a.attempts} attempts`);
+        g.appendChild(dot);
+
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        hit.setAttribute('cx', cx); hit.setAttribute('cy', cy); hit.setAttribute('r', 16);
+        hit.setAttribute('fill', 'transparent'); hit.style.cursor = 'pointer';
+        g.appendChild(hit);
+
+        const showTip = (e) => {
+          const svgRect = mapSvg.getBoundingClientRect();
+          const scaleX = svgRect.width / MAP_W;
+          const scaleY = svgRect.height / MAP_H;
+          let left = svgRect.left + cx * scaleX - 90;
+          let top = svgRect.top + cy * scaleY - 95;
+          if (left < 8) left = 8;
+          if (left + 190 > window.innerWidth) left = window.innerWidth - 198;
+          if (top < 8) top = svgRect.top + cy * scaleY + 20;
+          tooltip.innerHTML = `<div class="tt-ip">${a.ip}</div><div class="tt-loc">${a.city}, ${a.country}</div><div class="tt-count">${a.attempts.toLocaleString()} attempts</div>`;
+          tooltip.style.left = left + 'px';
+          tooltip.style.top = top + 'px';
+          tooltip.classList.add('show');
+        };
+        const hideTip = () => tooltip.classList.remove('show');
+
+        [dot, hit].forEach(el => {
+          el.addEventListener('mouseenter', showTip);
+          el.addEventListener('mouseleave', hideTip);
+          el.addEventListener('focus', showTip);
+          el.addEventListener('blur', hideTip);
+        });
+      });
+    }
+
+    // ── INCIDENT CARDS ────────────────────────────────────────────────────────────
+    function renderIncidentCards() {
+      const label = `${INCIDENTS.length} incident report${INCIDENTS.length !== 1 ? 's' : ''} \u2014 click to open`;
+      document.getElementById('incLabel').textContent = label;
+
+      document.getElementById('incidentCards').innerHTML = INCIDENTS.map(inc => `
+    <div class="incident-card" onclick="openDetail('${inc.id}')" tabindex="0"
+         onkeydown="if(event.key==='Enter')openDetail('${inc.id}')"
+         role="button" aria-label="Open ${inc.id} incident report">
+      <div class="inc-card-accent" style="background:${inc.accentColor}"></div>
+      <div class="incident-card-inner">
+        <div class="inc-sidebar">
+          <div class="inc-id">${inc.id}</div>
+          <div class="inc-date">${inc.date}</div>
+          <div class="inc-tags">
+            <span class="tag ${inc.severityClass}">${inc.severityLabel}</span>
+            <span class="tag ${inc.statusClass}">${inc.status}</span>
+            <span class="tag ${inc.mitreClass}">${inc.mitre}</span>
+          </div>
+        </div>
+        <div class="inc-main">
+          <div class="inc-type">${inc.type}</div>
+          <div class="inc-summary">${inc.summary}</div>
+          <div class="inc-footer">
+            <div class="inc-metrics">
+              ${inc.metrics.map(m => `<div class="inc-metric"><div class="inc-metric-val">${m.val}</div><div class="inc-metric-label">${m.label}</div></div>`).join('')}
+            </div>
+            <div class="inc-cta">View report <div class="inc-cta-line"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+    }
+
+    // ── DETAIL MODAL ──────────────────────────────────────────────────────────────
+    function openDetail(id) {
+      const inc = INCIDENTS.find(i => i.id === id);
+      if (!inc) return;
+      const tmpl = document.getElementById(inc.templateId);
+      if (!tmpl) return;
+      const panel = document.getElementById('detailPanel');
+      panel.innerHTML = '';
+      panel.appendChild(tmpl.content.cloneNode(true));
+      document.getElementById('detailOverlay').classList.add('show');
+      panel.focus();
+      lockBodyScroll();
+    }
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('show');
+      unlockBodyScroll();
+    }
+
+    // ── QUERY LIBRARY ─────────────────────────────────────────────────────────────
+    function renderQueryLibrary() {
+      document.getElementById('queryList').innerHTML = QUERIES.map((q, i) => `
+    <div class="query-item">
+      <div class="query-header" onclick="toggleQuery(this)" role="button" tabindex="0"
+           aria-expanded="${i === 0}" onkeydown="if(event.key==='Enter'||event.key===' ')toggleQuery(this)">
+        <div class="query-header-left">
+          <span class="query-num">Query ${q.num}</span>
+          <span class="query-title-text">${q.title}</span>
+        </div>
+        <span class="query-toggle" aria-hidden="true">${i === 0 ? '&minus;' : '+'}</span>
+      </div>
+      <div class="query-body${i === 0 ? ' open' : ''}">
+        <p class="query-desc">${q.desc}</p>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copy</button><pre>${escHtml(q.code)}</pre></div>
+      </div>
+    </div>`).join('');
+    }
+
+    function toggleQuery(header) {
+      const body = header.nextElementSibling;
+      const toggle = header.querySelector('.query-toggle');
+      const isOpen = body.classList.contains('open');
+      body.classList.toggle('open', !isOpen);
+      toggle.innerHTML = isOpen ? '+' : '&minus;';
+      header.setAttribute('aria-expanded', String(!isOpen));
+    }
+
+    function openDashboardShot(e) {
+  e.preventDefault();
+  document.getElementById('lightboxImg').src = 'images/dashboard-full.png';
+  document.getElementById('lightboxImg').alt = 'Full Splunk SOC dashboard showing all detection panels';
+  document.getElementById('lightboxCaption').textContent = 'Full Splunk Dashboard';
+  document.getElementById('lightboxOverlay').classList.add('show');
+  lockBodyScroll();
+}
+
+    // ── LIGHTBOX ──────────────────────────────────────────────────────────────────
+    function openLightbox(idx) {
+      lightboxIdx = idx;
+      updateLightbox();
+      document.getElementById('lightboxOverlay').classList.add('show');
+      lockBodyScroll();
+    }
+
+    function openLightboxFromArtifact(link, e) {
+      e.preventDefault();
+      const src = link.getAttribute('href');
+      const found = lightboxImages.findIndex(img => img.src === src);
+      if (found !== -1) { openLightbox(found); return; }
+      const img = link.querySelector('img');
+      const cap = link.querySelector('.artifact-cap');
+      document.getElementById('lightboxImg').src = src;
+      document.getElementById('lightboxImg').alt = img ? img.alt : '';
+      document.getElementById('lightboxCaption').textContent = cap ? cap.textContent : '';
+      document.getElementById('lightboxOverlay').classList.add('show');
+      lockBodyScroll();
+    }
+
+    function updateLightbox() {
+      const img = lightboxImages[lightboxIdx];
+      document.getElementById('lightboxImg').src = img.src;
+      document.getElementById('lightboxImg').alt = img.alt;
+      document.getElementById('lightboxCaption').textContent = `${img.cap}  (${lightboxIdx + 1} / ${lightboxImages.length})`;
+    }
+    function navLightbox(dir) {
+      lightboxIdx = (lightboxIdx + dir + lightboxImages.length) % lightboxImages.length;
+      updateLightbox();
+    }
+    function closeLightbox() {
+      document.getElementById('lightboxOverlay').classList.remove('show');
+      unlockBodyScroll();
+    }
+
+    // ── COPY CODE ─────────────────────────────────────────────────────────────────
+    function copyCode(btn) {
+      const text = btn.nextElementSibling.textContent;
+      const doFallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+      };
+      const confirm = () => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+      };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(confirm).catch(() => { doFallback(); confirm(); });
+      } else { doFallback(); confirm(); }
+    }
+
+    // ── UTILITIES ─────────────────────────────────────────────────────────────────
+    function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // ── KEYBOARD ─────────────────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('lightboxOverlay').classList.contains('show')) closeLightbox();
+        else if (document.getElementById('detailOverlay').classList.contains('show')) closeDetail();
+      }
+      if (document.getElementById('lightboxOverlay').classList.contains('show')) {
+        if (e.key === 'ArrowLeft') navLightbox(-1);
+        if (e.key === 'ArrowRight') navLightbox(1);
+      }
+    });
+
+    document.getElementById('detailOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetail(); });
+    document.getElementById('lightboxOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeLightbox(); });
+    document.getElementById('hero').addEventListener('click', enterDashboard);
+    document.getElementById('hero').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterDashboard(); } });
+
+    // ── HERO BINARY CANVAS ────────────────────────────────────────────────────────
+    (function initHeroBinary() {
+      const canvas = document.getElementById('heroBinary');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let width, height, particles = [];
+      function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        width = rect.width; height = rect.height;
+        canvas.width = width * dpr; canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+      }
+      function createParticles() {
+        const count = Math.min(22, Math.max(14, Math.floor(width / 80)));
+        particles = [];
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: Math.random() * width, y: Math.random() * height,
+            char: Math.random() > 0.5 ? '1' : '0',
+            speed: 0.08 + Math.random() * 0.15,
+            opacity: 0.04 + Math.random() * 0.04,
+          });
+        }
+      }
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        ctx.font = "14px 'JetBrains Mono', monospace";
+        for (const p of particles) {
+          ctx.fillStyle = `rgba(142, 141, 138, ${p.opacity})`;
+          ctx.fillText(p.char, p.x, p.y);
+          p.y += p.speed;
+          if (p.y > height + 20) {
+            p.y = -20; p.x = Math.random() * width;
+            p.char = Math.random() > 0.5 ? '1' : '0';
+            p.opacity = 0.04 + Math.random() * 0.04;
+          }
+        }
+        requestAnimationFrame(draw);
+      }
+      resize(); createParticles(); draw();
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => { resize(); createParticles(); }, 200);
+      });
+    })();
+  </script>
+</body>
+
+</html>
