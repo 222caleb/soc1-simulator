@@ -46,6 +46,26 @@
       --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, .2);
     }
 
+    [data-theme="light"] {
+      --bg:      #F4F3F0;
+      --bg2:     #ECEAE6;
+      --bg3:     #1E1F22;
+      --border:  #D0CEC9;
+      --border2: #BFBDB8;
+      --white:   #1A1916;
+      --muted:   #6B6A67;
+      --tertiary: #9B9A97;
+      --orange:  #C96E28;
+      --orange-dim: #8A5020;
+      --red:     #B84040;
+      --red-dim: #7A2A2A;
+      --teal:    #2E8A80;
+      --blue:    #3D6FB5;
+      --purple:  #6B58A8;
+      --green:   #2E7A50;
+      --yellow:  #A8852E;
+    }
+
     *,
     *::before,
     *::after {
@@ -239,6 +259,35 @@
       font-family: var(--font-mono);
       font-size: 11px;
       color: var(--muted);
+    }
+
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 16px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .theme-toggle:hover {
+      color: var(--orange);
+      border-color: var(--orange);
+      background: rgba(232, 131, 59, 0.08);
+    }
+
+    .theme-icon {
+      display: block;
+      line-height: 1;
+      font-style: normal;
     }
 
     /* ── KPI STATS BAR ── */
@@ -1709,8 +1758,9 @@
       color: var(--muted);
       font-size: 30px;
       cursor: pointer;
-      z-index: 301;
+      z-index: 302;
       line-height: 1;
+      pointer-events: all;
     }
 
     .lightbox-close:hover {
@@ -1729,8 +1779,9 @@
       font-size: 26px;
       padding: 14px 18px;
       cursor: pointer;
-      z-index: 301;
+      z-index: 302;
       transition: background .15s;
+      pointer-events: all;
     }
 
     .lightbox-prev {
@@ -1905,6 +1956,102 @@
         padding: 12px 20px;
       }
     }
+
+    /* ── LIGHT MODE OVERRIDES ── */
+    [data-theme="light"] .dash-header {
+      background-color: rgba(236, 234, 230, 0.88);
+    }
+
+    [data-theme="light"] .hero {
+      background: var(--bg);
+    }
+
+    [data-theme="light"] .hero-bg {
+      background: radial-gradient(ellipse at 50% 60%, rgba(201, 110, 40, .06) 0%, transparent 70%);
+    }
+
+    [data-theme="light"] .map-outer {
+      background: var(--bg2);
+    }
+
+    [data-theme="light"] .country-path {
+      fill: #E2E0DB;
+      stroke: #C8C6C1;
+    }
+
+    [data-theme="light"] .detail-overlay {
+      background: rgba(26, 25, 22, 0.7);
+    }
+
+    [data-theme="light"] .lightbox-overlay {
+      background: rgba(26, 25, 22, 0.88);
+    }
+
+    [data-theme="light"] .stat-cell {
+      border-right-color: var(--border);
+    }
+
+    [data-theme="light"] .evidence-cover {
+      background: var(--bg2);
+    }
+
+    [data-theme="light"] .evidence-item:hover .evidence-cover {
+      background: rgba(236, 234, 230, 0.88);
+    }
+
+    [data-theme="light"] .sig-bar-wrap {
+      background: var(--border);
+    }
+
+    [data-theme="light"] .arch-conn-line-body {
+      background: var(--border2);
+    }
+
+    [data-theme="light"] .arch-conn-arrow {
+      border-left-color: var(--border2);
+    }
+
+    [data-theme="light"] .query-body {
+      background: var(--bg2);
+    }
+
+    [data-theme="light"] .query-header:hover {
+      background: var(--border);
+    }
+
+    [data-theme="light"] .code-block {
+      background: #E5E3DF;
+      border-color: var(--border2);
+    }
+
+    [data-theme="light"] .detail-cell {
+      background: var(--bg);
+    }
+
+    [data-theme="light"] .detail-text code {
+      background: var(--bg2);
+    }
+
+    [data-theme="light"] .detail-lesson {
+      background: var(--bg2);
+    }
+
+    [data-theme="light"] .detail-timeline th {
+      background: var(--bg2);
+    }
+
+    [data-theme="light"] .lightbox-prev,
+    [data-theme="light"] .lightbox-next {
+      background: var(--bg2);
+      color: var(--white);
+      border-color: var(--border2);
+    }
+
+    [data-theme="light"] .lightbox-prev:hover,
+    [data-theme="light"] .lightbox-next:hover {
+      background: var(--bg3);
+      color: #EBEAE7;
+    }
   </style>
 </head>
 
@@ -1941,6 +2088,9 @@
         onkeydown="if(event.key==='Enter')scrollToTop()" aria-label="Scroll to top">SOC 1 <span>Simulation Lab</span>
       </div>
       <div class="dash-meta">Home Lab SIEM &nbsp;&middot;&nbsp; Splunk Enterprise &nbsp;&middot;&nbsp; Caleb Damron</div>
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode">
+        <span class="theme-icon" id="themeIcon">&#9728;</span>
+      </button>
     </header>
 
     <!-- KPI STATS -->
@@ -2805,6 +2955,12 @@
   <div class="map-tooltip" id="mapTooltip" aria-hidden="true"></div>
 
   <script>
+    // Run immediately before any rendering to avoid flash of wrong theme
+    (function () {
+      const saved = localStorage.getItem('soc-theme');
+      if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    })();
+
     // ── DATA ──────────────────────────────────────────────────────────────────────
 
     const SIGNATURES = [
@@ -2900,6 +3056,33 @@ let lockedScrollY = 0;
     }
 
     // ── SCROLL TO TOP ─────────────────────────────────────────────────────────────
+    function toggleTheme() {
+      const html = document.documentElement;
+      const icon = document.getElementById('themeIcon');
+      const isLight = html.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        html.removeAttribute('data-theme');
+        icon.textContent = '☀';
+        localStorage.setItem('soc-theme', 'dark');
+      } else {
+        html.setAttribute('data-theme', 'light');
+        icon.textContent = '☽';
+        localStorage.setItem('soc-theme', 'light');
+      }
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem('soc-theme');
+      const icon = document.getElementById('themeIcon');
+      if (saved === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        if (icon) icon.textContent = '☽';
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        if (icon) icon.textContent = '☀';
+      }
+    }
+
     function scrollToTop() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -3149,14 +3332,16 @@ function unlockBodyScroll() {
 
     function openLightboxFromArtifact(link, e) {
       e.preventDefault();
+      const thumbs = Array.from(document.querySelectorAll('#detailPanel .artifact-thumb'));
+      lightboxImages = thumbs.map(a => ({
+        src: a.getAttribute('href'),
+        alt: (a.querySelector('img') || {}).alt || '',
+        cap: (a.querySelector('.artifact-cap') || {}).textContent || ''
+      }));
       const src = link.getAttribute('href');
-      const found = lightboxImages.findIndex(img => img.src === src);
-      if (found !== -1) { openLightbox(found); return; }
-      const img = link.querySelector('img');
-      const cap = link.querySelector('.artifact-cap');
-      document.getElementById('lightboxImg').src = src;
-      document.getElementById('lightboxImg').alt = img ? img.alt : '';
-      document.getElementById('lightboxCaption').textContent = cap ? cap.textContent : '';
+      lightboxIdx = lightboxImages.findIndex(img => img.src === src);
+      if (lightboxIdx === -1) lightboxIdx = 0;
+      updateLightbox();
       document.getElementById('lightboxOverlay').classList.add('show');
       lockBodyScroll();
     }
@@ -3168,6 +3353,7 @@ function unlockBodyScroll() {
       document.getElementById('lightboxCaption').textContent = `${img.cap}  (${lightboxIdx + 1} / ${lightboxImages.length})`;
     }
     function navLightbox(dir) {
+      if (lightboxImages.length === 0) return;
       lightboxIdx = (lightboxIdx + dir + lightboxImages.length) % lightboxImages.length;
       updateLightbox();
     }
@@ -3215,6 +3401,9 @@ function unlockBodyScroll() {
     document.getElementById('hero').addEventListener('click', enterDashboard);
     document.getElementById('hero').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterDashboard(); } });
 
+    // Sync theme icon with stored preference now that DOM is ready
+    initTheme();
+
     // ── HERO BINARY CANVAS ────────────────────────────────────────────────────────
     (function initHeroBinary() {
       const canvas = document.getElementById('heroBinary');
@@ -3243,8 +3432,10 @@ function unlockBodyScroll() {
       function draw() {
         ctx.clearRect(0, 0, width, height);
         ctx.font = "14px 'JetBrains Mono', monospace";
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const particleColor = isLight ? '90, 89, 86' : '142, 141, 138';
         for (const p of particles) {
-          ctx.fillStyle = `rgba(142, 141, 138, ${p.opacity})`;
+          ctx.fillStyle = `rgba(${particleColor}, ${p.opacity})`;
           ctx.fillText(p.char, p.x, p.y);
           p.y += p.speed;
           if (p.y > height + 20) {
